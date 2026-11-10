@@ -7,3 +7,5 @@ Pillow
 scikit-learn
 ipykernel
 tqdm
+pandas
+kagglehub
