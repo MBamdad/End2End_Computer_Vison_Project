@@ -1,147 +1,143 @@
-# End-to-End Computer Vision | Modular PyTorch CNN
+# End-to-End Computer Vision | Modular CNN Image Classification
 
-**A small, beginner-friendly, end-to-end image-classification project built from lessons 15–16.**
+A modular image-classification project built with **PyTorch**. The pipeline covers image preprocessing, CNN training, model evaluation, checkpoint saving, and prediction on new images. The code is organized into reusable components while keeping the implementation concise and easy to extend.
 
-This is deliberately **simple**: the original CNN blocks, loss function, Adam optimizer, training loop, evaluation, and OpenCV prediction logic are kept as close to the course as possible. The only goal of modularization is to put each part in the right file and learn how the pieces connect.
+## Project Overview
 
-> **Start here:** Open [`notebook/01_CNN_Modular_Tutorial.ipynb`](notebook/01_CNN_Modular_Tutorial.ipynb) in **VS Code**. It is a step-by-step walkthrough with Markdown explanations, code and short `#` reminders. You do not need to learn any new framework.
+| Property | Specification |
+|---|---|
+| **Task** | Multi-class image classification |
+| **Classes** | Cat, Dog, person |
+| **Input** | RGB images resized to 128 × 128 pixels |
+| **Model** | Custom convolutional neural network (CNN) |
+| **Frameworks** | PyTorch, Torchvision, OpenCV |
+| **Training** | Cross-entropy loss and Adam optimizer |
+| **Outputs** | Test accuracy, saved model weights, annotated predictions |
 
-## 🎯 What does the model do?
+## Pipeline
 
-Predict one of **three classes** from an RGB image: **Cat**, **Dog** or **person**.
-
-```text
-Images organized in folders
-             │
-             ▼
-    ImageDataset (one image + label)
-             │
-             ▼
-    DataLoader (32 images per batch)
-             │
-             ▼
-      CNN (4 feature blocks)
-             │
-             ▼
-    Flatten → Linear → 3 class scores
-             │
-             ▼
- Training → Evaluation → Save .pth
-             │
-             ▼
-    Inference → OpenCV label on image
+```mermaid
+flowchart LR
+    A["Labeled images"] --> B["Custom Dataset"]
+    B --> C["Transforms & DataLoader"]
+    C --> D["CNN feature extraction"]
+    D --> E["Fully connected classifier"]
+    E --> F["Training & evaluation"]
+    F --> G["Saved weights (.pth)"]
+    G --> H["Inference on new images"]
 ```
 
-## 📁 Simple project structure
+**Data preparation:** `ImageDataset` reads an image and its label. The `DataLoader` groups samples into batches of 32 and shuffles training data. Images are resized, converted to tensors, and normalized consistently for training and inference.
+
+**Model training:** Four convolutional blocks extract image features. Fully connected layers convert those features into three class scores. The model learns through backpropagation and Adam weight updates.
+
+**Evaluation and inference:** Accuracy is measured using the held-out test set. The trained weights are saved as a `.pth` file and reloaded for predictions. OpenCV adds the predicted class name to an output image.
+
+## CNN Architecture
+
+Each convolutional block follows:
+
+`Conv2D → BatchNorm2D → ReLU → MaxPool2D`
+
+| Stage | Output shape per image |
+|---|---|
+| RGB input | `3 × 128 × 128` |
+| CNN block 1 | `32 × 64 × 64` |
+| CNN block 2 | `64 × 32 × 32` |
+| CNN block 3 | `128 × 16 × 16` |
+| CNN block 4 | `256 × 8 × 8` |
+| Flatten | `16,384` features |
+| Fully connected layers | `16,384 → 512 → 128 → 3` |
+
+The final layer produces **three logits** (raw class scores). Convolution output channels (`32`, `64`, `128`, `256`) are architectural choices; spatial dimensions decrease through max-pooling.
+
+## Project Structure
 
 ```text
-Computer_Vision/
-├── PyTorch/                          # Your existing lessons + image dataset (unchanged)
-│   └── Classification_dataset_v3/
-│       └── images/{train,test}/{Cat,Dog,person}/
-├── requirements.txt                  # Your existing dependencies (unchanged)
-└── CV_Modular/                       # This new teaching project
-    ├── notebook/
-    │   └── 01_CNN_Modular_Tutorial.ipynb  # Start here: Markdown + executable code
-    ├── src/
-    │   ├── components/
-    │   │   ├── data_ingestion.py      # Dataset: one image and its label
-    │   │   ├── data_transformation.py # Resize, ToTensor, Normalize
-    │   │   ├── model.py               # Original four-block CNN
-    │   │   └── model_trainer.py       # Training loop + test accuracy
-    │   └── pipeline/
-    │       ├── train_pipeline.py      # Connect modules and save model
-    │       └── predict_pipeline.py    # Load weights and predict new image
-    ├── artifacts/                     # Generated locally, never committed
-    ├── setup.py                       # Optional package metadata
-    ├── .gitignore
-    └── README.md
+CV_Modular/
+├── notebook/                    # Exploration and visual checks
+├── src/
+│   ├── components/
+│   │   ├── data_ingestion.py     # ImageDataset: image paths and class labels
+│   │   ├── data_transformation.py # Resize, tensor conversion, normalization
+│   │   ├── model.py              # CNN architecture and forward pass
+│   │   └── model_trainer.py      # Training loop and test accuracy
+│   └── pipeline/
+│       ├── train_pipeline.py     # Train, evaluate, and save model
+│       └── predict_pipeline.py   # Load weights and classify images
+├── setup.py                     # Package metadata
+└── README.md
 ```
 
-**Why `.py` as well as `.ipynb`?** The `.ipynb` is your **teaching notebook**, with friendly Markdown explanations and experiments. The small `.py` files are **reusable modules** that the notebook calls. Both are ordinary VS Code files; `.py` does **not** mean PyCharm.
+The notebooks support exploration and inspection; the Python modules provide a reusable training and inference workflow.
 
-## 🧠 Remember the core ideas
+## Dataset
 
-| Code / component | One-line memory tip |
-|---|---|
-| `Dataset` | How to read and prepare **one** image and label. |
-| `__init__` | Collect file paths and class labels. |
-| `__len__` | Count images. |
-| `__getitem__` | Load and transform the image at one index. |
-| `DataLoader` | Group samples into batches; optionally shuffle. |
-| `transforms.Resize((128, 128))` | Give each image the same spatial dimensions. |
-| `ToTensor()` | Convert image to a PyTorch `(C, H, W)` tensor. |
-| `Normalize(0.5, 0.5)` | Apply the same normalization during training **and** prediction. |
-| `conv_layers` | Extract useful features with Conv → BN → ReLU → MaxPool. |
-| `_get_conv_output` | Use a dummy image to determine the flattened feature count. |
-| `fc_layers` | Turn image features into 3 class scores. |
-| `forward()` | Tell PyTorch how input passes through the CNN. |
-| `loss.backward()` | Calculate gradients via backpropagation. |
-| `optimizer.step()` | Update model weights. |
-| `model.eval()` | Switch model to evaluation / prediction behavior. |
-| `torch.save(model.state_dict(), ...)` | Save learned weights to `.pth`. |
-| `cv2.putText` | Write the predicted class name onto the output image. |
+**Dataset:** [Classification Dataset (Google Drive)](https://drive.google.com/file/d/1G9H2W0R6JLYYBXyHNM_kAcBufUJr4Qsy/view?usp=sharing)
 
-### 🔢 Tensor shape roadmap
+Download and extract the dataset into the following location **relative to the repository root**:
 
-| Stage | Shape (`batch_size=32`) |
-|---|---|
-| Input RGB images | `(32, 3, 128, 128)` |
-| Block 1 | `(32, 32, 64, 64)` |
-| Block 2 | `(32, 64, 32, 32)` |
-| Block 3 | `(32, 128, 16, 16)` |
-| Block 4 | `(32, 256, 8, 8)` |
-| Flatten | `(32, 16384)` |
-| Linear layers | `16384 → 512 → 128 → 3` |
-| Output | `(32, 3)` raw class scores (logits) |
+```text
+PyTorch/
+└── Classification_dataset_v3/
+    └── images/
+        ├── train/
+        │   ├── Cat/
+        │   ├── Dog/
+        │   └── person/
+        └── test/
+            ├── Cat/
+            ├── Dog/
+            └── person/
+```
 
-The first `3` comes from RGB; `32, 64, 128, 256` are **chosen output-channel hyperparameters**. Four `2×2` MaxPools reduce `128 → 64 → 32 → 16 → 8`. The same `Resize(128,128)` and `input_dim=128` must be used together for this architecture.
+Class indices are assigned consistently from sorted folder names: `Cat = 0`, `Dog = 1`, `person = 2`. The image dataset is not stored in this repository.
 
-## ▶️ Run locally in VS Code (Windows / PowerShell)
+## Installation and Usage
 
-1. Open `C:\Job\ML_Data_Scientist\IAB\Computer_Vision` in VS Code. Select the Python environment with PyTorch installed.
-2. Keep your existing dataset in `Computer_Vision\PyTorch\Classification_dataset_v3`.
-3. Open `CV_Modular/notebook/01_CNN_Modular_Tutorial.ipynb` and run cells **in order**.
+From the **repository root**, enter the project directory and install the existing dependencies:
 
-Or run the same modular pipeline from a VS Code terminal:
+```bash
+cd CV_Modular
+python -m pip install -r ../requirements.txt
+```
 
-```powershell
-cd "C:\Job\ML_Data_Scientist\IAB\Computer_Vision\CV_Modular"
+### Train and evaluate
 
-# Only if your environment needs the existing dependencies:
-pip install -r ..\requirements.txt
-
-# Quick learning run first, then the tutorial's full 40 epochs:
-python -m src.pipeline.train_pipeline --epochs 1
+```bash
 python -m src.pipeline.train_pipeline --epochs 40
-
-# Predict one image after training:
-python -m src.pipeline.predict_pipeline "..\PyTorch\Classification_dataset_v3\images\test\Dog\dog_1000.jpg"
 ```
 
-The saved weights and annotated image will appear inside `CV_Modular/artifacts/`. This generated folder is excluded from Git.
+The pipeline loads the training and test datasets, trains the CNN, reports test accuracy, and saves its weights to:
 
-**Dataset not found?** This package expects `Computer_Vision/PyTorch/Classification_dataset_v3/images/train` and `images/test`. If your folder has another name, change only `DATASET_DIR` in `src/pipeline/train_pipeline.py`.
+```text
+CV_Modular/artifacts/cnn_model.pth
+```
 
-## 📚 Dataset and lesson references
+### Predict a new image
 
-- Dataset: [Classification_dataset_v3 — Google Drive](https://drive.google.com/file/d/1G9H2W0R6JLYYBXyHNM_kAcBufUJr4Qsy/view?usp=sharing)
-- Udemy lessons: **Defining custom Image Dataset loader and usage**; **CNN Training Using a Custom Dataset**.
-- Original `015` and `016` course notebooks are kept in your existing `PyTorch` directory, not overwritten here.
+After training, run:
 
-## 🛠️ Original code vs. tiny practical adjustments
+```bash
+python -m src.pipeline.predict_pipeline "../PyTorch/Classification_dataset_v3/images/test/Dog/dog_1000.jpg"
+```
 
-The 4 CNN blocks, fully connected layers, dummy-input size calculation, `CrossEntropyLoss`, Adam `lr=0.001`, loss/backward/step loop, accuracy formula, saving with `.pth`, and image prediction steps follow the course examples.
+The predicted class is printed in the terminal. An annotated copy of the image is saved to:
 
-Only a few practical adjustments were needed to run as a reusable local project:
-- `sorted(os.listdir(image_dir))` ensures the **same class numbers** for train/test (`Cat=0`, `Dog=1`, `person=2`).
-- Folder paths use your Windows project structure rather than Google Colab `/content/` paths.
-- `shuffle=False` for the test loader; the training loader remains `shuffle=True`.
-- The **single shared transform** is used for training and inference, including `Normalize(mean=[0.5]*3, std=[0.5]*3)` as in your current lesson 016 notebook.
-- `torch.load(..., weights_only=True)` loads trusted model state dictionaries more safely.
+```text
+CV_Modular/artifacts/output_image.jpg
+```
 
-## 💼 Why this matters for industrial AI
+Replace the example path with any supported image you want to classify. The model predicts from the **image pixels**, not from the folder or filename.
 
-The workflow is a reusable **classification template**: replace the three-class training images with labeled industrial images (e.g., healthy vs defective components), then train and evaluate a model on held-out data. Production use would additionally require stronger validation, appropriate datasets, monitoring, and deployment—not included in this educational example.
+## Implementation Notes
 
-**Scope:** portfolio learning project; no industrial performance claims. CNN accuracy depends on the dataset, training time, hardware, and random seed, so run your own test rather than relying on a fixed number.
+- **Preprocessing:** `Resize((128, 128))`, `ToTensor()`, and `Normalize(mean=[0.5]*3, std=[0.5]*3)` are used consistently for training and inference.
+- **Batching:** The training DataLoader uses `batch_size=32` and `shuffle=True`; the test DataLoader uses `shuffle=False`.
+- **Training:** The network uses `CrossEntropyLoss` and Adam with a learning rate of `0.001`. The default training run is 40 epochs.
+- **Model persistence:** `torch.save(model.state_dict(), ...)` stores model parameters and registered buffers. Inference recreates the CNN architecture and loads these saved values.
+- **Evaluation:** Test accuracy is the proportion of correctly classified images. Results depend on the training run and should be measured rather than assumed.
+
+## Potential Applications
+
+This pipeline provides a starting point for image-based classification tasks such as visual quality inspection and component categorization. Adapting it to a new domain requires relevant labeled data, task-specific training, and validation on representative unseen images.
