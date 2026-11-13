@@ -1,22 +1,46 @@
-# CNN Image Classification — Streamlit
+# CNN Image Classification — Streamlit App
 
-A lightweight Streamlit application for the custom PyTorch CNN from the Computer Vision course. Upload a JPG or PNG image to predict **Cat**, **Dog**, or **Person** and view class probabilities.
+An interactive image-classification demo built with **PyTorch** and **Streamlit**. Upload an image to classify it as **Cat**, **Dog**, or **Person** using a custom-trained CNN.
 
-## Model
+The app displays the predicted class and the model's Softmax scores for all three classes.
 
-Uses the existing trained weights at `../gradio_app_2/model/cnn_128_model-100.pth`. No retraining or duplicate model upload is required.
+## Project Structure
 
-## Run locally
-
-From the Git repository root:
-
-```bash
-pip install -r PyTorch/streamlit_cnn_app/requirements.txt
-streamlit run PyTorch/streamlit_cnn_app/app.py
+```text
+streamlit_cnn_app/
+├── app.py                         # Streamlit interface and CNN inference
+├── model/
+│   └── cnn_128_model-100.pth      # Trained model weights
+├── requirements.txt               # Python dependencies
+└── README.md
 ```
 
-## Deploy
+## Run Locally
 
-On [Streamlit Community Cloud](https://share.streamlit.io/), choose your GitHub repository and `main` branch, with the entrypoint `PyTorch/streamlit_cnn_app/app.py`. Keep the sibling `gradio_app_2/model` directory in the same repository.
+Use **Python 3.11**. From the root of the GitHub repository, run:
 
-Educational classification demo; not a validated industrial-quality inspection model.
+```bash
+python -m pip install -r PyTorch/streamlit_cnn_app/requirements.txt
+python -m streamlit run PyTorch/streamlit_cnn_app/app.py
+```
+
+Open the local URL displayed in the terminal (typically `http://localhost:8501`).
+
+## Free Deployment with Streamlit Community Cloud
+
+[Streamlit Community Cloud](https://share.streamlit.io/) is a **free hosting platform** for Streamlit apps. It connects to GitHub, installs dependencies from `requirements.txt`, runs the Python application on a cloud server, and provides a shareable `*.streamlit.app` URL—without needing to manage a server yourself. Free hosting has resource limits.
+
+**To deploy this project:**
+
+1. Push `streamlit_cnn_app/` (including the `.pth` model file) to your GitHub repository.
+2. Sign in to [Streamlit Community Cloud](https://share.streamlit.io/) with GitHub and authorize repository access.
+3. Select **Create app → Deploy a public app from GitHub**.
+4. Enter your repository, select branch **`main`**, and set the **main file path** to `PyTorch/streamlit_cnn_app/app.py`.
+5. In **Advanced settings**, choose **Python 3.11**, then click **Deploy**.
+6. Open the generated URL and test the classifier with an image.
+
+Both public and private GitHub repositories are supported. If your repository is private, check the app's **sharing settings** before sending the link to others. Pushing changes to the deployed GitHub branch normally updates the cloud app automatically.
+
+## Note
+
+This is an **educational three-class classifier**, not a validated industrial inspection system. Softmax scores are not guaranteed accuracy estimates, and images outside the three classes can still receive confident predictions.
