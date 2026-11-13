@@ -78,7 +78,7 @@ The notebooks support exploration and inspection; the Python modules provide a r
 Download and extract the dataset into the following location **relative to the repository root**:
 
 ```text
-PyTorch/
+CV_Modular/
 └── Classification_dataset_v3/
     └── images/
         ├── train/
