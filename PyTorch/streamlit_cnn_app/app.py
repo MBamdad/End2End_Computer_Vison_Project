@@ -8,9 +8,8 @@ import torch
 from torch import nn
 
 # Reuse the existing model weights already stored in our GitHub project.
-MODEL_PATH = Path(__file__).resolve().parent.parent / "gradio_app_2" / "model" / "cnn_128_model-100.pth"
+MODEL_PATH = Path(__file__).resolve().parent / "model" / "cnn_128_model-100.pth"
 CLASS_NAMES = ["Cat", "Dog", "Person"]
-
 
 class CustomCnnModel(nn.Module):
     """Same architecture and layer names as the model trained in lesson 119."""
