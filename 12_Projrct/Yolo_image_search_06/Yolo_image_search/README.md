@@ -1,103 +1,188 @@
-# Computer Vision–Powered Image Search | YOLO11 + Streamlit
+<div align="center">
 
-A modular, local-first computer vision application that makes image collections searchable by **what they contain**, rather than by filenames.
+# 🔎 Visual Image Search Engine
 
-The application combines pretrained **Ultralytics YOLO11 object detection**, reusable **JSON metadata**, class-aware **Boolean search**, and a **Streamlit** interface. The main engineering idea is to **run object detection once, persist structured predictions, and perform subsequent searches without rerunning the model**.
+### Search images by what's **inside** them — not by filename.
 
-## What the application does
+**YOLO11 · Streamlit · Python · JSON Metadata**
 
-- **Index image collections:** run YOLO11 inference over a directory of images.
-- **Extract structured detections:** record each object's predicted class, confidence, bounding box, and per-image class counts.
-- **Reuse indexed results:** save predictions to `metadata.json`, then reload them in later sessions without inference.
-- **Search by content:** find images matching *any* selected class (**OR**) or *all* selected classes (**AND**).
-- **Filter by object quantity:** optionally set a maximum count per selected class; a matching class must still appear at least once.
-- **Inspect predictions:** browse image cards, show or hide bounding boxes, and highlight matching object classes.
-- **Export a subset:** download the matching records as `search_results.json` for further review or processing.
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
+![YOLO11](https://img.shields.io/badge/Detection-YOLO11-7059C1?style=flat-square)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
+![Metadata](https://img.shields.io/badge/Index-JSON-17A589?style=flat-square)
+![Workflow](https://img.shields.io/badge/Workflow-Modular-2274A5?style=flat-square)
 
-### Example searches
+**One-time object detection → reusable metadata → fast, interactive search**
 
-| Search | Expected behavior |
-| --- | --- |
-| `dog OR cat` | Return images containing at least one dog **or** one cat |
-| `dog AND frisbee` | Return images containing **both** objects |
-| `person`, max count = 2 | Return images with **one or two** detected people |
-| `bus AND person`, bus max = 3 | Return images with both classes and at most three detected buses |
+</div>
 
-Search results reflect **model predictions**, not verified ground-truth labels. Recognition quality depends on the pretrained model, confidence threshold, and image domain.
+---
 
-## End-to-end architecture
+## 🎯 The idea in 15 seconds
 
-```text
-                         IMAGE INDEXING (run as needed)
-  Local image directory
-          |
-          v
-  YOLO11 pretrained weights
-          |
-          v
-  Object detection (class + confidence + XYXY bounding box)
-          |
-          v
-  Per-image structured records + class counts
-          |
-          v
-  JSON persistence: metadata.json
-          |
-          +-----------------------------------------------+
-                                                          |
-                        INTERACTIVE SEARCH                |
-  Streamlit interface <--- Load existing JSON <-----------+
-          |
-          v
-  Discover available classes and observed count options
-          |
-          v
-  Search criteria: selected classes + AND/OR + max counts
-          |
-          v
-  Filter stored detection records in Python (no YOLO call)
-          |
-          v
-  Image gallery + optional bounding boxes + class counts
-          |
-          v
-  Download matching records: search_results.json
+Imagine a folder with hundreds of images. Instead of opening them one by one, ask the app:
+
+> **“Show images containing a dog AND a frisbee.”**  
+> **“Find a bus OR a bicycle.”**  
+> **“Show photos with at most two people.”**
+
+The application first builds a searchable index using a **pretrained YOLO11 object detector**. Then it searches **saved predictions**, so changing search criteria does **not** require rerunning the detector.
+
+## 🗺️ Project workflow — at a glance
+
+```mermaid
+flowchart LR
+    A["📁 Image Folder"] --> B["🧠 YOLO11<br/>Object Detection"]
+    B --> C["🧾 Detection Records<br/>Class · Box · Confidence · Count"]
+    C --> D[("💾 metadata.json")]
+    D --> E["🔎 Search Engine<br/>AND / OR · Max Counts"]
+    E --> F["🖼️ Interactive Gallery"]
+    F --> G["⬇️ Export Results JSON"]
+
+    classDef input fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A,stroke-width:2px;
+    classDef model fill:#EDE9FE,stroke:#7C3AED,color:#4C1D95,stroke-width:2px;
+    classDef data fill:#D1FAE5,stroke:#059669,color:#065F46,stroke-width:2px;
+    classDef search fill:#FEF3C7,stroke:#D97706,color:#92400E,stroke-width:2px;
+    classDef result fill:#FCE7F3,stroke:#DB2777,color:#831843,stroke-width:2px;
+    class A input;
+    class B model;
+    class C,D data;
+    class E search;
+    class F,G result;
 ```
 
-**Why this separation matters:** inference is typically the expensive stage, whereas searching an already indexed collection is a lightweight operation over structured records. Keeping the two paths separate makes iteration and repeated filtering more efficient.
+**Key architectural decision:** separate **expensive image inference** from **lightweight search on structured metadata**.
 
-## Code organization
+### Two ways to use the app
+
+```mermaid
+flowchart TD
+    U["🚀 Launch Streamlit App"] --> Q{"Do you already have<br/>metadata.json?"}
+    Q -->|"No — first time"| I["📂 Select image directory"]
+    I --> M["⚙️ Run YOLO11 inference"]
+    M --> S["💾 Save metadata.json"]
+    Q -->|"Yes — reuse results"| L["📥 Load metadata.json"]
+    S --> X["🔍 Search classes & counts"]
+    L --> X
+    X --> R["🖼️ Browse, highlight & export"]
+
+    classDef action fill:#E0F2FE,stroke:#0284C7,color:#075985,stroke-width:2px;
+    classDef decision fill:#FEF3C7,stroke:#D97706,color:#92400E,stroke-width:2px;
+    classDef saved fill:#D1FAE5,stroke:#059669,color:#065F46,stroke-width:2px;
+    class U,I,M,L,X,R action;
+    class Q decision;
+    class S saved;
+```
+
+> 🟢 **First run:** detect objects and create the index.  
+> 🔵 **Later runs:** load the saved index and search immediately — no new detection run.
+
+---
+
+## ✨ Core capabilities
+
+| | Capability | What it means in practice |
+| :---: | --- | --- |
+| 🧠 | **Pretrained detection** | YOLO11 predicts object classes, bounding boxes and confidence scores |
+| 💾 | **Persistent metadata** | Save image-level detections once and reload them as JSON |
+| 🔀 | **Boolean search** | Match **any** selected classes (OR) or **all** selected classes (AND) |
+| 🔢 | **Count filters** | Restrict the **maximum number** of a detected class in an image |
+| 🖼️ | **Visual inspection** | Display image cards and toggle bounding-box overlays |
+| 🎯 | **Match highlighting** | Highlight selected classes or display all predicted boxes |
+| 📤 | **Export** | Download matching image records as `search_results.json` |
+
+### 🔎 How search actually works
+
+For every image, Python checks the detected count of each selected class. A class matches only when it is **present at least once**, and its count does not exceed the optional maximum.
+
+```mermaid
+flowchart TD
+    Q["🔎 Search: dog AND frisbee"] --> A["Image A<br/>dog: 1 · frisbee: 1"]
+    Q --> B["Image B<br/>dog: 2 · frisbee: 0"]
+    Q --> C["Image C<br/>dog: 0 · frisbee: 1"]
+    A --> Y["✅ Match"]
+    B --> N["❌ Not a match"]
+    C --> N
+    classDef query fill:#EDE9FE,stroke:#7C3AED,color:#4C1D95,stroke-width:2px;
+    classDef sample fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A;
+    classDef yes fill:#D1FAE5,stroke:#059669,color:#065F46,stroke-width:2px;
+    classDef no fill:#FEE2E2,stroke:#DC2626,color:#991B1B;
+    class Q query;
+    class A,B,C sample;
+    class Y yes;
+    class N no;
+```
+
+| Search | Matches when… |
+| --- | --- |
+| `dog OR cat` | At least one of the classes is detected |
+| `dog AND frisbee` | **Both** classes are detected in the same image |
+| `person` + max count `2` | **One or two** people are detected (not zero) |
+
+**Implementation:** `any(class_matches.values())` for OR; `all(class_matches.values())` for AND. This is a **metadata filter**, not another YOLO prediction.
+
+---
+
+## 🧩 Modular software architecture
+
+```mermaid
+flowchart TB
+    UI["🖥️ app.py<br/>Streamlit UI · Session State · Search · Results"] --> INF["🧠 src/inference.py<br/>YOLOv11Inference"]
+    UI --> UT["💾 src/utils.py<br/>JSON Save / Load · Class Counts"]
+    INF --> CF["⚙️ src/config.py<br/>YAML Loader"]
+    CF --> YML["📋 configs/default.yaml<br/>Confidence · Image Extensions"]
+    INF --> MODEL["📦 yolo11m.pt<br/>Pretrained Weights"]
+    INF --> UT
+
+    classDef ui fill:#FCE7F3,stroke:#DB2777,color:#831843,stroke-width:2px;
+    classDef service fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A,stroke-width:2px;
+    classDef config fill:#FEF3C7,stroke:#D97706,color:#92400E;
+    class UI ui;
+    class INF,UT service;
+    class CF,YML,MODEL config;
+```
+
+<details>
+<summary><strong>📂 Expand the project folder structure</strong></summary>
 
 ```text
 Yolo_image_search/
-├── app.py                 # Streamlit application and search/results UI
-├── configs/
-│   └── default.yaml       # Confidence threshold and supported extensions
+├── app.py                 # Streamlit app, search and visualization
 ├── src/
-│   ├── config.py          # YAML configuration loader
-│   ├── inference.py       # YOLO11 model loading and image/directory inference
-│   └── utils.py           # Metadata save/load and class/count aggregation
-├── data/                  # Image data and generated metadata
-├── test/                  # Streamlit experimentation
-├── requirements.txt       # Python dependencies
-├── instruction.txt        # Environment setup notes
-└── yolo11m.pt             # YOLO11 medium pretrained weights
+│   ├── inference.py       # YOLO model and detection-to-metadata pipeline
+│   ├── utils.py           # Save/load JSON and derive search options
+│   └── config.py          # Load YAML configuration
+├── configs/
+│   └── default.yaml       # Confidence threshold and extensions
+├── data/                  # Image data / generated metadata
+├── test/                  # Streamlit exploration (not automated tests)
+├── yolo11m.pt             # Pretrained YOLO11 medium weights
+├── requirements.txt
+└── instruction.txt
 ```
 
-### Module responsibilities
+</details>
 
-| Component | Responsibility |
-| --- | --- |
-| `YOLOv11Inference` | Load model weights; predict over images; normalize detections into Python dictionaries |
-| `process_directory()` | Discover supported image files; process them independently; skip/log individual image failures |
-| `save_metadata()` / `load_metadata()` | Persist and restore records as JSON |
-| `get_unique_classes_counts()` | Build the available search classes and count options |
-| `app.py` | Orchestrate processing/loading, search controls, result cards, and export |
-| Streamlit `session_state` | Preserve metadata, search parameters, matches, and display preferences across interface reruns |
+## 🧾 Why JSON is central to the design
 
-## Metadata: the interface between ML and the search application
+The output of YOLO is transformed into a reusable record, rather than being used only to draw a rectangle on one picture.
 
-Each image is represented as a structured record. An illustrative example:
+```mermaid
+flowchart LR
+    P["📷 One Image"] --> D["🔍 Detected Objects"]
+    D --> K["class<br/>confidence<br/>bbox [x1,y1,x2,y2]"]
+    K --> J[("💾 JSON Record")]
+    J --> Z["🔎 Future Searches"]
+    classDef one fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A;
+    classDef two fill:#EDE9FE,stroke:#7C3AED,color:#4C1D95;
+    classDef three fill:#D1FAE5,stroke:#059669,color:#065F46;
+    class P one;
+    class D,K two;
+    class J,Z three;
+```
+
+<details>
+<summary><strong>🔍 View a sample metadata record</strong></summary>
 
 ```json
 {
@@ -122,127 +207,92 @@ Each image is represented as a structured record. An illustrative example:
 }
 ```
 
-- `bbox` contains pixel-space coordinates in **XYXY** order: `[xmin, ymin, xmax, ymax]`.
-- `confidence` is the model's prediction confidence.
-- `count` on each detection reflects that class's **total number in the image**, not the index of that individual detection.
-- `class_counts` is the convenient per-image summary used by the search logic.
-- `image_path` points to the underlying image; the actual image bytes are **not embedded** in the JSON.
+*Illustrative record, not a measured output from this repository.* The `count` field on each detection stores the **total count of its class in that image**, while `class_counts` summarizes counts by class. Bounding boxes use pixel-space XYXY coordinates.
 
-> **Important:** moving or sharing `metadata.json` does not automatically transfer the corresponding images. The referenced image paths must remain accessible or be remapped on the recipient's machine.
+</details>
 
-## Search logic
+**Important:** the JSON stores **paths to images**, not the image files themselves. Sharing metadata with another machine also requires accessible images and valid paths.
 
-The application first computes whether each selected class satisfies its count condition:
+---
 
-```python
-# Conceptual search logic
-n = class_counts.get(selected_class, 0)
-class_matches = n >= 1 and (max_count is None or n <= max_count)
+## 🚀 Run locally
 
-# Combine per-class results
-matched = any(matches) if mode == "OR" else all(matches)
-```
-
-The current UI's count control is a **maximum count**, not an exact-count or minimum-count selector. Classes with zero detections do not match.
-
-This search is performed against saved predictions in Python, **not by querying YOLO11 again**.
-
-## Running locally
-
-### 1. Create an environment
-
-Python 3.11 is a suitable starting point for the provided setup instructions:
+**1 · Create an environment**
 
 ```bash
 conda create -n yolo_image_search python=3.11 -y
 conda activate yolo_image_search
 ```
 
-### 2. Install dependencies
-
-From the project directory containing `requirements.txt`:
+**2 · Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-For GPU execution, install a compatible **CUDA-enabled PyTorch build** and ensure an NVIDIA GPU and its driver are available. See `instruction.txt` for the recorded installation commands.
+**3 · Start the application**
 
-**Current implementation requirement:** `YOLOv11Inference` defaults to `device='cuda'` and moves the model to that device. For a CPU-only environment, change that default to `device='cpu'` in `src/inference.py` before processing new images. Loading existing metadata does not require running the YOLO model.
-
-### 3. Launch Streamlit
-
-Run this command **from the `Yolo_image_search` directory** so that the relative `configs/default.yaml` path resolves:
+From the **`Yolo_image_search/`** folder (required by the current relative configuration path):
 
 ```bash
 streamlit run app.py
 ```
 
-Streamlit normally serves the application at `http://localhost:8501`. You may choose another port:
+Open **http://localhost:8501**.
 
-```bash
-streamlit run app.py --server.port 8080
-```
+**4 · Choose an entry point**
 
-### 4. Index images or reload existing metadata
+| 🆕 Process new images | ♻️ Load existing metadata |
+| --- | --- |
+| Enter image directory and model weights path | Enter existing `metadata.json` path |
+| Click **Start Inference** | Click **Load Metadata** |
+| Detection runs and metadata is saved | Predictions are reused without inference |
 
-**Option A — Process new images**
+Then select classes, choose OR/AND, optionally set maximum counts, click **Search Images**, adjust display options, and export selected records.
 
-1. Select **Process new images**.
-2. Enter the image directory path.
-3. Keep `yolo11m.pt` as the weights path or provide another compatible model path.
-4. Click **Start Inference**.
-5. Reuse the generated `metadata.json` in future sessions.
-
-**Option B — Load existing metadata**
-
-1. Select **Load existing metadata**.
-2. Enter the path to an existing `metadata.json`.
-3. Click **Load Metadata**.
-4. Search and browse images without running detection again.
-
-The project reads the model confidence threshold from `configs/default.yaml` (currently **0.30**) and discovers `.jpg`, `.jpeg`, and `.png` files at the supplied directory level.
-
-### 5. Search and export
-
-Select classes, choose AND/OR, optionally set per-class maximum counts, then click **Search Images**. The results view supports bounding-box display, class highlighting, and an adjustable gallery layout. Use **Download Results (JSON)** to export the matched metadata.
-
-## Technology stack
-
-- **Computer vision:** Ultralytics YOLO11, PyTorch
-- **Application/UI:** Streamlit
-- **Image annotation display:** Pillow (PIL)
-- **Configuration:** YAML / PyYAML
-- **Data interchange:** JSON
-- **Implementation:** modular Python
-
-## Engineering scope and limitations
-
-This repository demonstrates a **pretrained-inference application**, rather than YOLO model training or fine-tuning. It does not claim improved detection accuracy or production-scale throughput.
-
-Current implementation details to keep in mind:
-
-- Search quality is limited by the detector's predicted objects and its pretrained class vocabulary.
-- Detection uses a configured confidence threshold; results below it are filtered out.
-- Processing is currently **per image**; it is not a benchmarked batched or distributed indexing system.
-- The directory scan uses configured extensions and is not recursively traversing nested folders.
-- Metadata stores image paths, so a portable shared dataset requires maintaining or rewriting those paths.
-- Streamlit presentation relies on image files still being available on disk.
-- The existing `test/streamlit_basics.py` is exploratory Streamlit code, **not** an automated model-quality or integration test suite.
-- Exported predictions can support **human review and dataset curation**, but are **pseudo-labels**, not automatically verified annotations.
-
-## Why this project matters
-
-The work connects a computer vision model to the rest of an application workflow:
-
-1. **Inference engineering** — transform raw model outputs into a stable schema.
-2. **Data engineering** — save, reload, and reuse predictions as machine-readable metadata.
-3. **Application logic** — implement class-aware Boolean and quantity-based search.
-4. **Interface integration** — connect Python processing to interactive controls and results visualization.
-5. **Reproducibility and maintainability** — organize configuration, model inference, utilities, and UI into distinct components.
-
-The central design principle is **decoupling model computation from user interaction**: run detection when the dataset changes, then search the indexed results repeatedly and efficiently.
+> ⚠️ **Device note:** `src/inference.py` currently defaults to `device='cuda'`. To run new inference on a CPU-only machine, change the default to `device='cpu'`. Reloading existing JSON does not run YOLO. See `instruction.txt` for the original GPU installation guidance.
 
 ---
 
-**Project context:** Part of the [End2End Computer Vision Project](https://github.com/MBamdad/End2End_Computer_Vison_Project), focused on practical, modular computer vision application development.
+## 🛠️ Technology and implementation details
+
+| Layer | Technology |
+| --- | --- |
+| Object detection | **Ultralytics YOLO11**, pretrained `yolo11m.pt` |
+| Deep learning runtime | **PyTorch** |
+| Web application | **Streamlit** |
+| Bounding-box visualization | **Pillow (PIL)** |
+| Data exchange | **JSON** |
+| Configuration | **PyYAML** |
+| Implementation | **Python**, separated into UI, inference and utilities |
+
+The current configuration uses **0.30** detection confidence and scans `.jpg`, `.jpeg` and `.png` files in the supplied folder (not recursively).
+
+<details>
+<summary><strong>⚙️ Engineering notes and limitations</strong></summary>
+
+- This is a **pretrained inference and search application**, not a YOLO training or fine-tuning project.
+- Images are processed individually; no batched/distributed indexing performance is claimed.
+- Predicted classes are model-generated labels, **not validated ground truth**.
+- The saved `image_path` values must remain resolvable when viewing results.
+- Object-count controls are **upper bounds**, not exact counts.
+- `test/streamlit_basics.py` is a Streamlit experiment, not an automated integration test suite.
+- Exports can support human review and dataset curation, but predicted detections are **pseudo-labels**, not reviewed annotations.
+
+</details>
+
+## 💡 What this project demonstrates
+
+**Model integration** · **structured inference outputs** · **persistent metadata** · **modular Python** · **Boolean retrieval** · **interactive application delivery**
+
+The main takeaway is not only detecting objects. It is building a usable system around model predictions: **index once, search many times, inspect results, and export reusable data**.
+
+---
+
+<div align="center">
+
+Part of [**End2End Computer Vision Project**](https://github.com/MBamdad/End2End_Computer_Vison_Project)
+
+**YOLO11 → JSON → Search → Visualization → Export**
+
+</div>
